@@ -46,5 +46,43 @@ class GlassTimeline(object):
     pass
 
 
-class GlassTimelineItem(object):
+class GlassAPIObject(object):
+    def to_obj(self):
+        pass
+
+    def to_json(self):
+        return json.dumps(self.to_obj())
+
+
+class GlassTimelineItemMenu(GlassAPIObject):
+    ACTIONS = ['CUSTOM',  # Trigger callback to API
+        'REPLY', 'REPLY_ALL', 'DELETE', 'SHARE', 'READ_ALOUD',
+        'VOICE_CALL', 'NAVIGATE', 'TOGGLE_PINNED',
+        'OPEN_URI',  # Needs `payload'
+        'PLAY_VIDEO',  # Needs `payload'
+    ]
+
+    def __init__(self, id_, action, payload=None):
+        if action not in self.ACTIONS:
+            raise ValueError("Action `%s' is invalid" % (action))
+
+        if action in ['OPEN_URI', 'PLAY_VIDEO'] and payload is None:
+            raise ValueError("Action requires a payload kwarg.")
+
+        self.action = action
+        self.id_ = id_
+        self.payload = payload
+
+
+    def to_obj(self):
+        o = {
+            "id": self.id_,
+            "action": self.action,
+        }
+        if self.payload:
+            o['payload'] = self.payload
+        return o
+
+
+class GlassTimelineItem(GlassAPIObject):
     pass

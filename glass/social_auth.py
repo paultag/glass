@@ -5,23 +5,23 @@ from requests.exceptions import HTTPError
 import requests
 
 
-def request(u, *args, **kwargs):
-    """
-    Wrapper for request.request, but refresh the token if we can't nom.
-    """
-    try:
-        req = requests.request(*args, **kwargs)
-    except HTTPError:
-        s = load_strategy(backend='google-oauth2')
-        u.refresh_token(s)
-        req = requests.request(*args, **kwargs)
-    req.raise_for_status()
-    return req.json()
+def retry(fn):
+    def _fn(self, *args, **kwargs):
+        try:
+            return fn(self, *args, **kwargs)
+        except HTTPError:
+            s = load_strategy(backend='google-oauth2')
+            self._user.social_auth.get().refresh_token(s)
+            return fn(self, *args, **kwargs)
+    return _fn
 
 
 class SocialGlassAPI(GlassAPI):
     def __init__(self, user):
         self._user = user
+
+    get = retry(GlassAPI.get)
+    post = retry(GlassAPI.post)
 
     @property
     def token(self):

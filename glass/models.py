@@ -23,10 +23,17 @@ class GlassAPI(object):
         params['access_token'] = self._user.social_auth.get().tokens
         return self.request('GET', self._url(path), params=params, **kwargs)
 
+    def delete(self, path, **kwargs):
+        return self.pud('DELETE', path, **kwargs)
+
     def post(self, path, **kwargs):
-        if 'data' not in kwargs:
-            kwargs['data'] = {}
-        data = json.dumps(kwargs.pop('data'), cls=JSONEncoderPlus)
+        return self.pud('POST', path, **kwargs)
+
+    def pud(self, method, path, **kwargs):
+
+        data = None
+        if 'data' in kwargs:
+            data = json.dumps(kwargs['data'], cls=JSONEncoderPlus)
 
         if 'headers' not in kwargs:
             kwargs['headers'] = {}
@@ -34,19 +41,50 @@ class GlassAPI(object):
 
         headers['Authorization'] = "Bearer {token}".format(
             token=self._user.social_auth.get().tokens)
-        headers['Content-Type'] = "application/json"
 
-        return self.request('POST', self._url(path), data=data,
+        if data:
+            headers['Content-Type'] = "application/json"
+
+        return self.request(method, self._url(path), data=data,
                             headers=headers, **kwargs)
 
     def request(self, *args, **kwargs):
         req = requests.request(*args, **kwargs)
         req.raise_for_status()
-        return req.json()
+        if req.text:
+            return req.json()
+        return None
+
+    def get_timeline(self):
+        return GlassTimeline(self)
 
 
 class GlassTimeline(object):
-    pass
+    def __init__(self, api):
+        self.api = api
+
+    def add_item(self, item):
+        data = self.api.post('timeline', data=item.to_obj())
+        id = data['id']
+        item.id = id
+        return id
+
+    def delete_item(self, id):
+        self.api.delete('timeline/%s' % (id))
+        return None
+
+    def get_page(self, page=None):
+        params = {}
+        if page:
+            params['pageToken'] = page
+        return self.api.get('timeline', params=params)
+
+    def __iter__(self):
+        curpage = self.get_page()
+        while curpage['items'] != []:
+            for x in curpage['items']:
+                yield GlassTimelineItem(**x)
+            curpage = self.get_page(page=curpage['nextPageToken'])
 
 
 class JSONEncoderPlus(json.JSONEncoder):
@@ -85,11 +123,11 @@ class GlassTimelineItemMenu(GlassAPIObject):
 
     _attrs = {
         'action': 'action',
-        'id_': 'id',
+        'id': 'id',
         'payload': 'payload',
     }
 
-    def __init__(self, id_, action, payload=None):
+    def __init__(self, id, action, payload=None):
         if action not in self.ACTIONS:
             raise ValueError("Action `%s' is invalid" % (action))
 
@@ -97,7 +135,7 @@ class GlassTimelineItemMenu(GlassAPIObject):
             raise ValueError("Action requires a payload kwarg.")
 
         self.action = action
-        self.id_ = id_
+        self.id = id
         self.payload = payload
 
 
@@ -110,14 +148,30 @@ class GlassTimelineItem(GlassAPIObject):
         'notification': 'notification',
     }
 
-    def __init__(self, menu_items=None, text=None, html=None):
+    KINDS = ['mirror#timelineItem',]
+
+    def __init__(self, id=None, kind=None, menuItems=None, updated=None,
+                 created=None, text=None, html=None, notification=None,
+                 creator=None, etag=None, selfLink=None):
+
+        if kind and kind not in self.KINDS:
+            raise ValueError("Kind `%s' is invalid" % (kind))
+
         self.menu_items = []
-        if menu_items:
-            self.menu_items = menu_items
+        if menuItems:
+            self.menu_items = [GlassTimelineItemMenu(**x) for x in menuItems]
 
         self.text = None
         self.html = None
         self.notification = None
+        self.kind = kind
+        self.created = created
+        self.updated = updated
+        self.etag = etag
+        self.id = id
+        self.self_link = selfLink
+        self.notification = notification
+        self.creator = creator
 
         if text and html:
             raise ValueError("You gave me both Text and HTML. Fail.")
@@ -145,7 +199,7 @@ class NotifiableGlassTimelineItem(GlassTimelineItem):
 class DeletableGlassTimelineItem(GlassTimelineItem):
     def __init__(self, *args, **kwargs):
         super(DeletableGlassTimelineItem, self).__init__(*args, **kwargs)
-        self.add_menu_item(GlassTimelineItemMenu(id_=str(uuid.uuid4()),
+        self.add_menu_item(GlassTimelineItemMenu(id=str(uuid.uuid4()),
                                                  action='DELETE'))
 
 class BoringGlassTimelineItem(

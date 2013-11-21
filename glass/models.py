@@ -33,7 +33,7 @@ class GlassAPI(object):
 
         data = None
         if 'data' in kwargs:
-            data = json.dumps(kwargs['data'], cls=JSONEncoderPlus)
+            data = json.dumps(kwargs.pop('data'), cls=JSONEncoderPlus)
 
         if 'headers' not in kwargs:
             kwargs['headers'] = {}

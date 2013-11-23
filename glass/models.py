@@ -58,6 +58,28 @@ class GlassAPI(object):
     def get_timeline(self):
         return GlassTimeline(self)
 
+    def get_location(self):
+        return GlassLocationService(self)
+
+
+class GlassLocationService(object):
+    def __init__(self, api):
+        self.api = api
+
+    def get_current_location(self):
+        data = self.api.get('locations/latest')
+        return GlassLocation(data)
+
+
+class GlassLocation(object):
+    def __init__(self, obj):
+        self.kind = obj['kind']
+        self.when = obj['timestamp']
+        self.lon = obj['longitude']
+        self.lat = obj['latitude']
+        self.accuracy = obj['accuracy']
+        self.id = obj['id']
+
 
 class GlassTimeline(object):
     def __init__(self, api):

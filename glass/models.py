@@ -176,6 +176,13 @@ class GlassTimelineItem(GlassAPIObject):
                  created=None, text=None, html=None, notification=None,
                  creator=None, etag=None, selfLink=None):
 
+        if text and html:
+            raise ValueError("You gave me both Text and HTML. Fail.")
+
+        if text is None and html is None:
+            raise ValueError("You gave me neither HTML nor Text")
+
+
         if kind and kind not in self.KINDS:
             raise ValueError("Kind `%s' is invalid" % (kind))
 
@@ -194,18 +201,8 @@ class GlassTimelineItem(GlassAPIObject):
         self.self_link = selfLink
         self.notification = notification
         self.creator = creator
-
-        if text and html:
-            raise ValueError("You gave me both Text and HTML. Fail.")
-
-        if text is None and html is None:
-            raise ValueError("You gave me neither HTML nor Text")
-
-        if text:
-            self.text = text
-
-        if html:
-            self.html = html
+        self.text = text
+        self.html = html
 
     def add_menu_item(self, option):
         self.menu_items.append(option)

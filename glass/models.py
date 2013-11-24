@@ -127,7 +127,7 @@ class GlassAPIObject(object):
         obj = {}
         for k, v in self._attrs.items():
             a = getattr(self, k)
-            if a:
+            if a is not None:
                 obj[v] = a
         return obj
 
@@ -165,6 +165,9 @@ class GlassTimelineItem(GlassAPIObject):
     _attrs = {
         # host: remote
         'menu_items': 'menuItems',
+        "bundle_id": "bundleId",
+        "bundle_cover": "isBundleCover",
+        "pinned": "isPinned",
         'text': 'text',
         'html': 'html',
         'notification': 'notification',
@@ -174,6 +177,7 @@ class GlassTimelineItem(GlassAPIObject):
 
     def __init__(self, id=None, kind=None, menuItems=None, updated=None,
                  created=None, text=None, html=None, notification=None,
+                 bundleId=None, isPinned=False, isBundleCover=False,
                  creator=None, etag=None, selfLink=None):
 
         if text and html:
@@ -203,6 +207,9 @@ class GlassTimelineItem(GlassAPIObject):
         self.creator = creator
         self.text = text
         self.html = html
+        self.pinned = isPinned
+        self.bundle_id = bundleId
+        self.bundle_cover = isBundleCover
 
     def add_menu_item(self, option):
         self.menu_items.append(option)
@@ -220,6 +227,13 @@ class DeletableGlassTimelineItem(GlassTimelineItem):
         super(DeletableGlassTimelineItem, self).__init__(*args, **kwargs)
         self.add_menu_item(GlassTimelineItemMenu(id=str(uuid.uuid4()),
                                                  action='DELETE'))
+
+class PinableGlassTimelineItem(GlassTimelineItem):
+    def __init__(self, *args, **kwargs):
+        super(PinableGlassTimelineItem, self).__init__(*args, **kwargs)
+        self.add_menu_item(GlassTimelineItemMenu(id=str(uuid.uuid4()),
+                                                 action='TOGGLE_PINNED'))
+
 
 class BoringGlassTimelineItem(
     NotifiableGlassTimelineItem, DeletableGlassTimelineItem

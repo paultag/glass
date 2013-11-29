@@ -11,7 +11,9 @@ def retry(fn):
             return fn(self, *args, **kwargs)
         except HTTPError:
             s = load_strategy(backend='google-oauth2')
-            self._user.social_auth.get().refresh_token(s)
+            sa = self._user.social_auth.get()
+            sa.refresh_token(s)
+            sa.save()
             return fn(self, *args, **kwargs)
     return _fn
 
